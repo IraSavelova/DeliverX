@@ -21,7 +21,9 @@ Frontend обращается к backend через API Gateway.
 - **Frontend** — пользовательский интерфейс
 - **API Gateway** — единая точка входа, маршрутизация, проверка JWT.
 - **Identity Service** — пользователи, аутентификация/авторизация, профиль, адреса.
-- **Rates Service** — агрегация/расчёт тарифов, адаптеры перевозчиков.
+- **Rates Service** — агрегация/расчёт тарифов + кэширование популярных направлений.
+- **Message Broker** - очередь для асинхронных вызовов API перевозчиков.
+
 
 ---
 
@@ -33,9 +35,12 @@ Backend:
 - Spring Security (JWT)
 - PostgreSQL
 - Maven
+- RabbitMQ
 
 Frontend :
-- 
+- TypeScript
+- React
+- Next.js
 
 Инфраструктура и качество:
 - Docker 
