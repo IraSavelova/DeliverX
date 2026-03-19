@@ -31,7 +31,7 @@ Frontend обращается к backend через API Gateway.
 ## Технологии
 
 Backend:
-- Java 17+
+- Java 25+
 - Spring Boot, Spring Cloud Gateway
 - Spring Security (JWT)
 - PostgreSQL
