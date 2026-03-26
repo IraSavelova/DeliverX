@@ -1,0 +1,345 @@
+{
+  "info": {
+    "name": "Delivery API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080/api" },
+    { "key": "access_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth Service",
+      "item": [
+        {
+          "name": "POST /auth/login — success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has accessToken', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('accessToken');",
+                  "    pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('tokenType is Bearer', () => {",
+                  "    pm.expect(pm.response.json().tokenType).to.equal('Bearer');",
+                  "});",
+                  "",
+                  "pm.test('expiresIn is a number', () => {",
+                  "    pm.expect(pm.response.json().expiresIn).to.be.a('number');",
+                  "});",
+                  "",
+                  "const token = pm.response.json().accessToken;",
+                  "pm.collectionVariables.set('access_token', token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"artur.petrov@mailtest.com\",\n  \"password\": \"SecurePass99\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login — wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error structure is correct', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('status');",
+                  "    pm.expect(body).to.have.property('error');",
+                  "    pm.expect(body).to.have.property('message');",
+                  "    pm.expect(body).to.have.property('path');",
+                  "    pm.expect(body.status).to.equal(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions credentials', () => {",
+                  "    const msg = pm.response.json().message.toLowerCase();",
+                  "    pm.expect(msg).to.include('invalid');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"artur.petrov@mailtest.com\",\n  \"password\": \"wrongpassword\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login — missing email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 or 401', () => {",
+                  "    pm.expect([400, 401]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"SecurePass99\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Profile Service",
+      "item": [
+        {
+          "name": "GET /users/me — success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Profile has required fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.all.keys('id', 'firstName', 'lastName', 'email', 'phone');",
+                  "});",
+                  "",
+                  "pm.test('id is a number', () => {",
+                  "    pm.expect(pm.response.json().id).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('email is a string', () => {",
+                  "    pm.expect(pm.response.json().email).to.be.a('string').and.include('@');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ]
+          }
+        },
+        {
+          "name": "GET /users/me — no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 without token', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users/me",
+            "header": []
+          }
+        },
+        {
+          "name": "PUT /users/me — success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response reflects updated fields', () => {",
+                  "    const body = pm.response.json();",
+                  "    const req = JSON.parse(pm.request.body.raw);",
+                  "    pm.expect(body.firstName).to.equal(req.firstName);",
+                  "    pm.expect(body.lastName).to.equal(req.lastName);",
+                  "    pm.expect(body.phone).to.equal(req.phone);",
+                  "});",
+                  "",
+                  "pm.test('Email is not changed', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/users/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Dmitry\",\n  \"lastName\": \"Volkov\",\n  \"phone\": \"+79031728456\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rates Service",
+      "item": [
+        {
+          "name": "POST /rates/calculate — success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is an array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Response is not empty', () => {",
+                  "    pm.expect(pm.response.json().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Each rate has required fields', () => {",
+                  "    pm.response.json().forEach(rate => {",
+                  "        pm.expect(rate).to.have.all.keys('carrier', 'price', 'estimatedDays', 'deliveryMethod');",
+                  "        pm.expect(rate.price).to.be.a('number').and.above(0);",
+                  "        pm.expect(rate.estimatedDays).to.be.a('number').and.above(0);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rates/calculate",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromCity\": \"Kazan\",\n  \"toCity\": \"Novosibirsk\",\n  \"weightKg\": 1.8,\n  \"lengthCm\": 25,\n  \"widthCm\": 18,\n  \"heightCm\": 12,\n  \"deliverySpeed\": \"STANDARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /rates/calculate?sortBy=price",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Results sorted by price ascending', () => {",
+                  "    const rates = pm.response.json();",
+                  "    for (let i = 1; i < rates.length; i++) {",
+                  "        pm.expect(rates[i].price).to.be.at.least(rates[i - 1].price);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/rates/calculate?sortBy=price",
+              "host": ["{{base_url}}"],
+              "path": ["rates", "calculate"],
+              "query": [{ "key": "sortBy", "value": "price" }]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromCity\": \"Kazan\",\n  \"toCity\": \"Novosibirsk\",\n  \"weightKg\": 1.8,\n  \"lengthCm\": 25,\n  \"widthCm\": 18,\n  \"heightCm\": 12,\n  \"deliveryType\": \"STANDARD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /rates/calculate?sortBy=time",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Results sorted by estimatedDays ascending', () => {",
+                  "    const rates = pm.response.json();",
+                  "    for (let i = 1; i < rates.length; i++) {",
+                  "        pm.expect(rates[i].estimatedDays).to.be.at.least(rates[i - 1].estimatedDays);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/rates/calculate?sortBy=time",
+              "host": ["{{base_url}}"],
+              "path": ["rates", "calculate"],
+              "query": [{ "key": "sortBy", "value": "time" }]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromCity\": \"Kazan\",\n  \"toCity\": \"Novosibirsk\",\n  \"weightKg\": 1.8,\n  \"lengthCm\": 25,\n  \"widthCm\": 18,\n  \"heightCm\": 12,\n  \"deliveryType\": \"STANDARD\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
