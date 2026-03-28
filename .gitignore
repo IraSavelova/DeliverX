@@ -4,6 +4,7 @@
 # IDE
 .vscode/
 .idea/
+.gigaide/
 *.iml
 
 # Logs
@@ -27,4 +28,5 @@ frontend/.turbo/
 # Java language server / temp
 .classpath
 .project
-.settings/
+.settings/dev_temp/
+.dev_temp/

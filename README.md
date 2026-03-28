@@ -47,6 +47,7 @@ Frontend :
 - Docker 
 - Unit tests 
 - Postman 
+- GitHub Flow
 - CI/CD (GitHub Actions)
 - Sonar (статический анализ качества кода)
 ---
