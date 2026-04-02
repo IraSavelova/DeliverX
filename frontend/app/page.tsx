@@ -122,7 +122,7 @@ export default function RatesPage() {
       setShowResults(true);
     } catch (error) {
       console.error(error);
-      setErrorMessage("Не удалось загрузить тарифы. Проверьте backend.");
+      setErrorMessage("Не удалось загрузить тарифы");
       setShowResults(false);
     } finally {
       setLoading(false);

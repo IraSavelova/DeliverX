@@ -9,16 +9,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.deliverx.rates_service.dto.RateRequest;
 import com.deliverx.rates_service.dto.RateResponse;
+import com.deliverx.rates_service.service.RatesService;
 
 @RestController
 @RequestMapping("/rates")
 public class RatesController {
 
+    private final RatesService ratesService;
+
+    public RatesController(RatesService ratesService) {
+        this.ratesService = ratesService;
+    }
+
     @PostMapping("/calculate")
     public List<RateResponse> calculateRates(@RequestBody RateRequest request) {
-        return List.of(
-                new RateResponse("FastShip", 1290.0, 2, "COURIER"),
-                new RateResponse("EcoDelivery", 890.0, 4, "PICKUP_POINT")
-        );
+        return ratesService.calculateRates(request);
     }
 }
