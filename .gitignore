@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+.gigaide/
+*.iml
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Frontend / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
+# Backend / Maven / Java
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Java language server / temp
+.classpath
+.project
+.settings/dev_temp/
+.dev_temp/
