@@ -1,24 +1,32 @@
 package com.deliverx.rates_service.controller;
 
-import java.util.List;
-
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.deliverx.rates_service.dto.RateRequest;
 import com.deliverx.rates_service.dto.RateResponse;
+import com.deliverx.rates_service.service.RatesService;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/rates")
 public class RatesController {
 
+    private final RatesService ratesService;
+
+    public RatesController(RatesService ratesService) {
+        this.ratesService = ratesService;
+    }
+
+    /**
+     * POST /rates/calculate
+     * POST /rates/calculate?sortBy=price
+     * POST /rates/calculate?sortBy=time
+     */
     @PostMapping("/calculate")
-    public List<RateResponse> calculateRates(@RequestBody RateRequest request) {
-        return List.of(
-                new RateResponse("FastShip", 1290.0, 2, "COURIER"),
-                new RateResponse("EcoDelivery", 890.0, 4, "PICKUP_POINT")
-        );
+    public List<RateResponse> calculateRates(
+            @Valid @RequestBody RateRequest request,
+            @RequestParam(required = false) String sortBy) {
+        return ratesService.calculate(request, sortBy);
     }
 }
