@@ -1,10 +1,12 @@
 package com.deliverx.rates_service.service;
 
+import com.deliverx.rates_service.client.DellinClient;
 import com.deliverx.rates_service.client.PekClient;
 import com.deliverx.rates_service.dto.RateRequest;
 import com.deliverx.rates_service.dto.RateResponse;
 import com.deliverx.rates_service.dto.carrier.CarrierRateRequest;
 import com.deliverx.rates_service.dto.carrier.CarrierRateResponse;
+import com.deliverx.rates_service.dto.carrier.DellinCalculatorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,13 +15,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Оркестрирует запросы к перевозчикам и возвращает список тарифов.
- *
- * Сейчас интегрирован один перевозчик — ПЭК.
- * Когда добавятся другие (CDEK, Boxberry и т.д.) — каждый будет
- * отдельным клиентом, результаты сливаются в общий список.
- */
 @Service
 public class RatesService {
 
@@ -27,29 +22,25 @@ public class RatesService {
 
     private final PekClient pekClient;
     private final CityDictionaryService cityDictionary;
+    private final DellinClient dellinClient;
 
-    public RatesService(PekClient pekClient, CityDictionaryService cityDictionary) {
+    public RatesService(PekClient pekClient,
+                        CityDictionaryService cityDictionary,
+                        DellinClient dellinClient) {
         this.pekClient = pekClient;
         this.cityDictionary = cityDictionary;
+        this.dellinClient = dellinClient;
     }
 
-    /**
-     * Рассчитывает тарифы всех доступных перевозчиков.
-     *
-     * @param request параметры груза и маршрута
-     * @param sortBy  "price" | "time" | null (без сортировки)
-     * @return список тарифов
-     */
     public List<RateResponse> calculate(RateRequest request, String sortBy) {
         List<RateResponse> results = new ArrayList<>();
 
-        // --- ПЭК ---
-        List<RateResponse> pekRates = fetchPekRates(request);
-        results.addAll(pekRates);
+        log.info("Запрашиваем ПЭК...");
+        results.addAll(fetchPekRates(request));
 
-        // Сюда позже добавим: results.addAll(fetchCdekRates(request));
+        log.info("Запрашиваем Деловые Линии...");
+        results.addAll(fetchDellinRates(request));
 
-        // Сортировка
         if ("price".equalsIgnoreCase(sortBy)) {
             results.sort(Comparator.comparingDouble(RateResponse::getPrice));
         } else if ("time".equalsIgnoreCase(sortBy)) {
@@ -59,59 +50,78 @@ public class RatesService {
         return results;
     }
 
-    /**
-     * Запрашивает тарифы у ПЭК и маппит ответ в наш формат RateResponse.
-     *
-     * ПЭК возвращает отдельно авто и авиа — каждый тип становится отдельной строкой.
-     */
     private List<RateResponse> fetchPekRates(RateRequest request) {
         List<RateResponse> rates = new ArrayList<>();
 
-        // Конвертируем названия городов в PEK ID
         String fromId = cityDictionary.findCityId(request.getFromCity());
         String toId   = cityDictionary.findCityId(request.getToCity());
 
         if (fromId == null || toId == null) {
-            log.warn("PEK: city not found. from='{}' (id={}) to='{}' (id={})",
+            log.warn("ПЭК: город не найден. from='{}' (id={}) to='{}' (id={})",
                     request.getFromCity(), fromId, request.getToCity(), toId);
             return rates;
         }
 
-        // Конвертируем см -> м
-        double widthM  = request.getWidthCm()  / 100.0;
-        double lengthM = request.getLengthCm() / 100.0;
-        double heightM = request.getHeightCm() / 100.0;
-
         CarrierRateRequest pekRequest = new CarrierRateRequest(
-                fromId, toId, widthM, lengthM, heightM, request.getWeightKg()
+                fromId, toId,
+                request.getWidthCm()  / 100.0,
+                request.getLengthCm() / 100.0,
+                request.getHeightCm() / 100.0,
+                request.getWeightKg()
         );
 
         CarrierRateResponse pekResponse = pekClient.calculate(pekRequest);
-
         if (pekResponse == null) {
-            log.warn("PEK: no response received");
+            log.warn("ПЭК: нет ответа");
             return rates;
         }
 
-        // Автоперевозка
         if (pekResponse.hasAuto()) {
-            rates.add(new RateResponse(
-                    "ПЭК",
-                    pekResponse.getTotalAutoPrice(),
-                    pekResponse.getAutoDays(),
-                    "COURIER"
-            ));
+            rates.add(new RateResponse("ПЭК", pekResponse.getTotalAutoPrice(),
+                    pekResponse.getAutoDays(), "PICKUP_POINT"));
+        }
+        if (pekResponse.hasAvia()) {
+            rates.add(new RateResponse("ПЭК Авиа", pekResponse.getTotalAviaPrice(),
+                    1, "COURIER"));
         }
 
-        // Авиаперевозка (если доступна на данном направлении)
-        if (pekResponse.hasAvia()) {
-            rates.add(new RateResponse(
-                    "ПЭК Авиа",
-                    pekResponse.getTotalAviaPrice(),
-                    1, // авиа обычно 1 день, PEK пишет в aperiods строкой
-                    "COURIER"
-            ));
+        return rates;
+    }
+
+    private List<RateResponse> fetchDellinRates(RateRequest request) {
+        List<RateResponse> rates = new ArrayList<>();
+
+        DellinCalculatorResponse response = dellinClient.calculate(request);
+
+        if (response == null || !response.hasData()) {
+            log.warn("Деловые Линии: нет ответа");
+            return rates;
         }
+
+        DellinCalculatorResponse.Data data = response.getData();
+        int days = data.getDays();
+
+        // Авто
+        double autoPrice = data.getAutoPrice();
+        if (autoPrice > 0) {
+            rates.add(new RateResponse("Деловые Линии", autoPrice, days, "PICKUP_POINT"));
+        }
+
+        // Авиа (если доступна на маршруте)
+        double aviaPrice = data.getAviaPrice();
+        if (aviaPrice > 0) {
+            rates.add(new RateResponse("Деловые Линии Авиа", aviaPrice, 1, "COURIER"));
+        }
+
+        // Экспресс
+        double expressPrice = data.getExpressPrice();
+        if (expressPrice > 0) {
+            rates.add(new RateResponse("Деловые Линии Экспресс", expressPrice,
+                    Math.max(1, days - 1), "COURIER"));
+        }
+
+        log.info("Деловые Линии: авто={} авиа={} экспресс={} дней={}",
+                autoPrice, aviaPrice, expressPrice, days);
 
         return rates;
     }

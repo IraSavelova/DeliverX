@@ -3,7 +3,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { MapPin, Package, Calendar } from 'lucide-react';
+import { MapPin, Package, Calendar, Home } from 'lucide-react';
 
 interface DeliveryFormProps {
   onCalculate: (data: DeliveryFormData) => void;
@@ -12,7 +12,9 @@ interface DeliveryFormProps {
 
 export interface DeliveryFormData {
   fromCity: string;
+  fromAddress: string;
   toCity: string;
+  toAddress: string;
   weight: string;
   length: string;
   width: string;
@@ -20,10 +22,12 @@ export interface DeliveryFormData {
   deliverySpeed: string;
 }
 
-export function DeliveryForm({ onCalculate }: DeliveryFormProps) {
+export function DeliveryForm({ onCalculate, loading }: DeliveryFormProps) {
   const [formData, setFormData] = useState<DeliveryFormData>({
     fromCity: '',
+    fromAddress: '',
     toCity: '',
+    toAddress: '',
     weight: '',
     length: '',
     width: '',
@@ -43,16 +47,17 @@ export function DeliveryForm({ onCalculate }: DeliveryFormProps) {
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-6 mb-8">
       <h2 className="text-2xl font-semibold mb-6 text-gray-800">Рассчитать стоимость доставки</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+      {/* Откуда */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
         <div className="space-y-2">
           <Label htmlFor="from" className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-orange-500" />
-            Откуда
+            Город отправления
           </Label>
           <Input
             id="from"
-            placeholder="Город отправления"
+            placeholder="Например: Москва"
             value={formData.fromCity}
             onChange={(e) => handleChange('fromCity', e.target.value)}
             required
@@ -60,21 +65,51 @@ export function DeliveryForm({ onCalculate }: DeliveryFormProps) {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="fromAddress" className="flex items-center gap-2">
+            <Home className="w-4 h-4 text-orange-500" />
+            Адрес отправки <span className="text-gray-400 font-normal">(необязательно)</span>
+          </Label>
+          <Input
+            id="fromAddress"
+            placeholder="Улица, дом"
+            value={formData.fromAddress}
+            onChange={(e) => handleChange('fromAddress', e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Куда */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="space-y-2">
           <Label htmlFor="to" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-orange-500" />
-            Куда
+            <MapPin className="w-4 h-4 text-purple-500" />
+            Город назначения
           </Label>
           <Input
             id="to"
-            placeholder="Город назначения"
+            placeholder="Например: Новосибирск"
             value={formData.toCity}
             onChange={(e) => handleChange('toCity', e.target.value)}
             required
           />
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="toAddress" className="flex items-center gap-2">
+            <Home className="w-4 h-4 text-purple-500" />
+            Адрес доставки <span className="text-gray-400 font-normal">(необязательно)</span>
+          </Label>
+          <Input
+            id="toAddress"
+            placeholder="Улица, дом"
+            value={formData.toAddress}
+            onChange={(e) => handleChange('toAddress', e.target.value)}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* Габариты */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="space-y-2">
           <Label htmlFor="weight" className="flex items-center gap-2">
             <Package className="w-4 h-4 text-orange-500" />
@@ -132,6 +167,7 @@ export function DeliveryForm({ onCalculate }: DeliveryFormProps) {
         </div>
       </div>
 
+      {/* Тип доставки */}
       <div className="mb-6">
         <Label htmlFor="deliveryType" className="flex items-center gap-2 mb-2">
           <Calendar className="w-4 h-4 text-orange-500" />
@@ -147,15 +183,14 @@ export function DeliveryForm({ onCalculate }: DeliveryFormProps) {
             <SelectItem value="economy">Экономная</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-sm text-gray-500 mt-2">
-          <span className="font-medium">Стандартная:</span> оптимальный вариант по сроку и цене. 
-          <span className="font-medium ml-2">Экспресс:</span> быстрая доставка. 
-          <span className="font-medium ml-2">Экономная:</span> самые дешевые варианты.
-        </p>
       </div>
 
-      <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 !font-bold">
-        Рассчитать стоимость
+      <Button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-orange-500 hover:bg-orange-600 !font-bold disabled:opacity-60"
+      >
+        {loading ? 'Рассчитываем...' : 'Рассчитать стоимость'}
       </Button>
     </form>
   );
