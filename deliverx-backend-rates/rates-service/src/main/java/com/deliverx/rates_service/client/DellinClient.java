@@ -16,8 +16,9 @@ import java.util.Map;
 /**
  * HTTP-клиент к API Деловых Линий v2.
  *
- * Используем вариант address-address (дверь-дверь):
- * variant=address + address.search=название города
+ * Используем тип "auto" с вариантом address+address.
+ * address.search принимает название города — ДЛ геокодирует сам.
+ * Поле time обязательно для derival при варианте address.
  */
 @Component
 public class DellinClient {
@@ -54,21 +55,20 @@ public class DellinClient {
         deliveryType.put("type", "auto");
         delivery.put("deliveryType", deliveryType);
 
-        // Откуда — адрес (дверь)
+        // Откуда — address с поиском по городу + обязательное время
         Map<String, Object> derival = new HashMap<>();
         derival.put("variant", "address");
         derival.put("produceDate", LocalDate.now().plusDays(1).toString());
         Map<String, Object> derivalAddr = new HashMap<>();
         derivalAddr.put("search", req.getFromCity());
         derival.put("address", derivalAddr);
-        // ДЛ требует время работы при варианте address
         Map<String, Object> derivalTime = new HashMap<>();
         derivalTime.put("worktimeStart", "09:00");
         derivalTime.put("worktimeEnd", "18:00");
         derival.put("time", derivalTime);
         delivery.put("derival", derival);
 
-        // Куда — адрес (дверь)
+        // Куда — address с поиском по городу
         Map<String, Object> arrival = new HashMap<>();
         arrival.put("variant", "address");
         Map<String, Object> arrivalAddr = new HashMap<>();
@@ -78,7 +78,6 @@ public class DellinClient {
 
         body.put("delivery", delivery);
 
-        // Груз
         Map<String, Object> cargo = new HashMap<>();
         cargo.put("quantity",    1);
         cargo.put("length",      req.getLengthCm() / 100.0);
@@ -97,19 +96,13 @@ public class DellinClient {
                     .uri(CALC_PATH)
                     .bodyValue(body)
                     .retrieve()
-                    .bodyToMono(String.class)
-                    .doOnNext(raw -> log.info("Dellin raw response: {}", raw))
-                    .map(raw -> {
-                        try {
-                            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(raw, DellinCalculatorResponse.class);
-                        } catch (Exception e) {
-                            log.error("Dellin parse error: {}", e.getMessage());
-                            return null;
-                        }
-                    })
+                    .bodyToMono(DellinCalculatorResponse.class)
                     .block();
         } catch (WebClientResponseException e) {
-            log.error("Dellin API error {} {}: {}", e.getStatusCode(), e.getStatusText(), e.getResponseBodyAsString());
+            log.error("Dellin API error {} {} {}: {}",
+                    e.getStatusCode(), e.getStatusText(),
+                    e.getRequest() != null ? e.getRequest().getURI() : "",
+                    e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
             log.error("Dellin API call failed: {}", e.getMessage());

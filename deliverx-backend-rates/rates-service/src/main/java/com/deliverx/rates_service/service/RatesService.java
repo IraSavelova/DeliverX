@@ -9,6 +9,7 @@ import com.deliverx.rates_service.dto.carrier.CarrierRateResponse;
 import com.deliverx.rates_service.dto.carrier.DellinCalculatorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -32,7 +33,19 @@ public class RatesService {
         this.dellinClient = dellinClient;
     }
 
+    /**
+     * Ключ кэша = fromCity + toCity + weightKg + lengthCm + widthCm + heightCm.
+     * Одинаковые запросы в течение 10 минут не идут к перевозчикам повторно.
+     */
+    @Cacheable(
+        value = "rates",
+        key = "#request.fromCity + '-' + #request.toCity + '-' + #request.weightKg" +
+              "+ '-' + #request.lengthCm + '-' + #request.widthCm + '-' + #request.heightCm"
+    )
     public List<RateResponse> calculate(RateRequest request, String sortBy) {
+        log.info("Считаем тарифы: {} → {} (кэш промах)",
+                request.getFromCity(), request.getToCity());
+
         List<RateResponse> results = new ArrayList<>();
 
         log.info("Запрашиваем ПЭК...");
@@ -101,19 +114,16 @@ public class RatesService {
         DellinCalculatorResponse.Data data = response.getData();
         int days = data.getDays();
 
-        // Авто
         double autoPrice = data.getAutoPrice();
         if (autoPrice > 0) {
             rates.add(new RateResponse("Деловые Линии", autoPrice, days, "PICKUP_POINT"));
         }
 
-        // Авиа (если доступна на маршруте)
         double aviaPrice = data.getAviaPrice();
         if (aviaPrice > 0) {
             rates.add(new RateResponse("Деловые Линии Авиа", aviaPrice, 1, "COURIER"));
         }
 
-        // Экспресс
         double expressPrice = data.getExpressPrice();
         if (expressPrice > 0) {
             rates.add(new RateResponse("Деловые Линии Экспресс", expressPrice,
