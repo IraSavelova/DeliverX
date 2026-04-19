@@ -1,1 +1,38 @@
+volumes:
+  auth_postgres_data:
+  # rates_postgres_data:
 
+services:
+  auth-postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql
+
+  # Uncomment for rates service
+  # rates-postgres:
+  #   image: postgres:18
+  #   environment:
+  #     POSTGRES_DB: rates_db
+  #     POSTGRES_USER: rates_user
+  #     POSTGRES_PASSWORD: rates_pass
+  #   ports:
+  #     - "5433:5432"
+  #   volumes:
+  #     - rates_postgres_data:/var/lib/postgresql
+
+  auth-service:
+    build: ./deliverx-backend-rates/auth-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: auth_user
+      SPRING_DATASOURCE_PASSWORD: auth_pass
+    depends_on:
+      - auth-postgres
