@@ -13,6 +13,11 @@ services:
       - "5432:5432"
     volumes:
       - auth_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U auth_user -d auth_db" ]
+      interval: 2s
+      timeout: 2s
+      retries: 20
 
   # Uncomment for rates service
   # rates-postgres:
@@ -35,4 +40,5 @@ services:
       SPRING_DATASOURCE_USERNAME: auth_user
       SPRING_DATASOURCE_PASSWORD: auth_pass
     depends_on:
-      - auth-postgres
+      auth-postgres:
+        condition: service_healthy
