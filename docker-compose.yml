@@ -1,5 +1,6 @@
 volumes:
   auth_postgres_data:
+  user_postgres_data:
   # rates_postgres_data:
 
 services:
@@ -15,6 +16,21 @@ services:
       - auth_postgres_data:/var/lib/postgresql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U auth_user -d auth_db" ]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  user-postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user_user
+      POSTGRES_PASSWORD: user_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - user_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user_user -d user_db" ]
       interval: 2s
       timeout: 2s
       retries: 20
@@ -41,4 +57,17 @@ services:
       SPRING_DATASOURCE_PASSWORD: auth_pass
     depends_on:
       auth-postgres:
+        condition: service_healthy
+
+
+  user-service:
+    build: ./deliverx-backend-rates/user-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-postgres:5432/user_db
+      SPRING_DATASOURCE_USERNAME: user_user
+      SPRING_DATASOURCE_PASSWORD: user_pass
+    depends_on:
+      user-postgres:
         condition: service_healthy
