@@ -1,5 +1,6 @@
 volumes:
   auth_postgres_data:
+  user_postgres_data:
   # rates_postgres_data:
 
 services:
@@ -15,6 +16,21 @@ services:
       - auth_postgres_data:/var/lib/postgresql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U auth_user -d auth_db" ]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  user-postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user_user
+      POSTGRES_PASSWORD: user_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - user_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user_user -d user_db" ]
       interval: 2s
       timeout: 2s
       retries: 20
@@ -49,20 +65,35 @@ services:
   rates-service:
     build: ./deliverx-backend-rates/rates-service
     ports:
-      - "8082:8080"  # External:8082 -> Internal:8080
+      - "8082:8080"
     environment:
       SERVER_PORT: 8080
     depends_on:
       auth-service:
         condition: service_started
 
+  user-service:
+    build: ./deliverx-backend-rates/user-service
+    ports:
+      - "8083:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-postgres:5432/user_db
+      SPRING_DATASOURCE_USERNAME: user_user
+      SPRING_DATASOURCE_PASSWORD: user_pass
+      SERVER_PORT: 8082
+    depends_on:
+      user-postgres:
+        condition: service_healthy
+
   # API Gateway (external port 8080)
   gateway-service:
     build: ./deliverx-backend-rates/gateway-service
     ports:
-      - "8080:8080"  # External:8080 -> Gateway
+      - "8080:8080"
     depends_on:
       auth-service:
         condition: service_started
       rates-service:
+        condition: service_started
+      user-service:
         condition: service_started
