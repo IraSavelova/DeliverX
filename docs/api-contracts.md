@@ -1,28 +1,45 @@
-## Auth Service
+# API Contracts
 
-### POST /auth/login
+Backend requests should normally go through the API Gateway:
 
-Аутентификация пользователя и получение JWT токена.
+```text
+http://localhost:8080
+```
 
-**Request:**
+Some services are also exposed directly by Docker Compose for local debugging.
+
+## Authentication
+
+### POST `/auth/login`
+
+Authenticates a user and returns a JWT access token.
+
+Gateway-compatible path:
+
+```text
+POST /api/auth/login
+```
+
+Request:
+
 ```json
 {
   "email": "user@example.com",
   "password": "qwerty123"
 }
-````
+```
 
-**Response:**
+Response:
 
 ```json
 {
   "accessToken": "jwt-token-value",
   "tokenType": "Bearer",
-  "expiresIn": 3600
+  "expiresIn": 86400
 }
 ```
 
-**Error Response:**
+Error response example:
 
 ```json
 {
@@ -34,80 +51,92 @@
 }
 ```
 
----
+## User Profile
 
-## User Profile Service
+Protected user profile endpoints require:
 
-### GET /users/me
-
-Получение данных текущего пользователя.
-
-**Headers:**
-
-```
+```text
 Authorization: Bearer <JWT>
 ```
 
-**Response:**
+### GET `/users/me`
+
+Returns the profile for the authenticated user.
+
+Gateway-compatible path:
+
+```text
+GET /api/users/me
+```
+
+Response:
 
 ```json
 {
-  "id": 1,
-  "firstName": "Name",
-  "lastName": "Lastname",
   "email": "user@example.com",
-  "phone": "+79991234567"
+  "firstName": "Ira",
+  "lastName": "Savelova",
+  "phone": "+79991234567",
+  "address": "Novosibirsk"
 }
 ```
 
----
+### PUT `/users/me`
 
-### PUT /users/me
+Updates the profile for the authenticated user.
 
-Обновление профиля пользователя.
+Gateway-compatible path:
 
-**Headers:**
-
-```
-Authorization: Bearer <JWT>
+```text
+PUT /api/users/me
 ```
 
-**Request:**
+Request:
 
 ```json
 {
   "firstName": "Ira",
   "lastName": "Savelova",
-  "phone": "+79991234567"
+  "phone": "+79991234567",
+  "address": "Novosibirsk"
 }
 ```
 
-**Response:**
+Response:
 
 ```json
 {
-  "id": 1,
+  "email": "user@example.com",
   "firstName": "Ira",
   "lastName": "Savelova",
-  "email": "user@example.com",
-  "phone": "+79991234567"
+  "phone": "+79991234567",
+  "address": "Novosibirsk"
 }
 ```
 
----
+Validation:
 
-## Rates Service
+| Field | Rule |
+| --- | --- |
+| `firstName` | Maximum 120 characters. |
+| `lastName` | Maximum 120 characters. |
+| `phone` | Maximum 32 characters, supports digits, spaces, `+`, `-`, and parentheses. |
+| `address` | Maximum 255 characters. |
 
-### POST /rates/calculate
+## Rates
 
-Расчёт тарифов доставки.
+### POST `/rates/calculate`
 
-**Request:**
+Calculates delivery rates.
+
+Request:
 
 ```json
 {
   "fromCity": "Moscow",
+  "fromAddress": "Tverskaya 1",
   "toCity": "Saint Petersburg",
+  "toAddress": "Nevsky Prospect 10",
   "weightKg": 2.5,
   "lengthCm": 30,
   "widthCm": 20,
@@ -116,7 +145,7 @@ Authorization: Bearer <JWT>
 }
 ```
 
-**Response:**
+Response:
 
 ```json
 [
@@ -135,58 +164,35 @@ Authorization: Bearer <JWT>
 ]
 ```
 
----
+### POST `/rates/calculate?sortBy=price`
 
-### POST /rates/calculate?sortBy=price
+Calculates rates and sorts them by price.
 
-Расчёт тарифов с сортировкой.
+Supported query parameters:
 
-**Query Parameters:**
+| Parameter | Values | Description |
+| --- | --- | --- |
+| `sortBy` | `price`, `time` | Optional sorting mode. |
 
-* `sortBy`: `price` | `time`
+Request body is the same as `/rates/calculate`.
 
-**Request:**
+## Gateway Routes
 
-```json
-{
-  "fromCity": "Moscow",
-  "toCity": "Saint Petersburg",
-  "weightKg": 2.5,
-  "lengthCm": 30,
-  "widthCm": 20,
-  "heightCm": 15,
-  "deliveryType": "STANDARD"
-}
-```
+The gateway forwards requests using these route predicates:
 
-**Response:** аналогичен `/rates/calculate`
+| Gateway path | Target service |
+| --- | --- |
+| `/auth/**` | Auth Service |
+| `/api/auth/**` | Auth Service |
+| `/rates/**` | Rates Service |
+| `/users/**` | User Service |
+| `/api/users/**` | User Service |
+| `/profile/**` | User Service |
 
----
+## Postman
 
-## API Gateway
-
-Frontend взаимодействует с backend через API Gateway.
-
-Базовый URL:
+A Postman collection is available at:
 
 ```text
-http://localhost:8080/api
+postman/Delivery_api.postman_collection.json
 ```
-
-Примеры маршрутов:
-
-* `POST /api/auth/login`
-* `GET /api/users/me`
-* `PUT /api/users/me`
-* `POST /api/rates/calculate`
-
----
-
-## Примечания
-
-* Все защищённые endpoint требуют JWT токен.
-* Для неавторизованных пользователей используется `guestId`.
-
-````
-
----

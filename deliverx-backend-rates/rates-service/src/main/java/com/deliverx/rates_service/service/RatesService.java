@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RatesService {
@@ -112,13 +113,15 @@ public class RatesService {
     private List<RateResponse> fetchDellinRates(RateRequest request) {
         List<RateResponse> rates = new ArrayList<>();
 
-        DellinCalculatorResponse response = dellinClient.calculate(request);
+        Optional<DellinCalculatorResponse> maybeResponse = dellinClient.calculate(request)
+                .filter(DellinCalculatorResponse::hasData);
 
-        if (response == null || !response.hasData()) {
+        if (maybeResponse.isEmpty()) {
             log.warn("Деловые Линии: нет ответа");
             return rates;
         }
 
+        DellinCalculatorResponse response = maybeResponse.orElseThrow();
         DellinCalculatorResponse.Data data = response.getData();
         int days = data.getDays();
 
@@ -154,7 +157,10 @@ public class RatesService {
 
         ExpressRuCalculatorResponse response = expressRuClient.calculate(request);
         if (response == null || !response.isOk()) {
-            log.warn("Express.ru: нет ответа или ошибка");
+            log.warn("Express.ru: нет тарифов. status={} error={} resultSize={}",
+                    response != null ? response.getStatus() : null,
+                    response != null ? response.getError() : null,
+                    response != null && response.getResult() != null ? response.getResult().size() : 0);
             return rates;
         }
 

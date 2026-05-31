@@ -1,8 +1,24 @@
 volumes:
   auth_postgres_data:
   user_postgres_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
 
 services:
+  sonarqube:
+    image: sonarqube:community
+    profiles:
+      - quality
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
   auth-postgres:
     image: postgres:18
     environment:

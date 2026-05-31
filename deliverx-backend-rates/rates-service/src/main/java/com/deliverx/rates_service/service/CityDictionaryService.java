@@ -22,7 +22,7 @@ public class CityDictionaryService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    private Map<String, String> cityCache;
+    private volatile Map<String, String> cityCache;
 
     public CityDictionaryService(WebClient.Builder builder, ObjectMapper objectMapper) {
         this.webClient = builder
@@ -38,8 +38,12 @@ public class CityDictionaryService {
         return cityCache.get(cityName.toLowerCase().trim());
     }
 
-    private void loadCities() {
-        cityCache = new HashMap<>();
+    private synchronized void loadCities() {
+        if (cityCache != null) {
+            return;
+        }
+
+        Map<String, String> loadedCities = new HashMap<>();
         try {
             String json = webClient.get()
                     .uri(TOWNS_URL)
@@ -49,6 +53,7 @@ public class CityDictionaryService {
 
             if (json == null) {
                 log.warn("PEK towns API returned null");
+                cityCache = loadedCities;
                 return;
             }
 
@@ -57,13 +62,15 @@ public class CityDictionaryService {
 
             for (Map<String, String> cities : regions.values()) {
                 for (Map.Entry<String, String> entry : cities.entrySet()) {
-                    cityCache.put(entry.getValue().toLowerCase().trim(), entry.getKey());
+                    loadedCities.put(entry.getValue().toLowerCase().trim(), entry.getKey());
                 }
             }
 
+            cityCache = loadedCities;
             log.info("Loaded {} cities from PEK dictionary", cityCache.size());
 
         } catch (Exception e) {
+            cityCache = loadedCities;
             log.error("Failed to fetch PEK towns: {}", e.getMessage());
         }
     }

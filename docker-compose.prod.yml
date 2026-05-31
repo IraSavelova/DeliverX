@@ -1,0 +1,101 @@
+volumes:
+  auth_postgres_data:
+  user_postgres_data:
+
+services:
+  auth-postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD}
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  user-postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user_user
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD:?Set USER_DB_PASSWORD}
+    volumes:
+      - user_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_user -d user_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  auth-service:
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/deliverx-auth-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: auth_user
+      SPRING_DATASOURCE_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?Set APP_JWT_SECRET}
+      APP_JWT_EXPIRATION: ${APP_JWT_EXPIRATION:-86400000}
+      SERVER_PORT: 8080
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+
+  rates-service:
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/deliverx-rates-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8080
+      DELLIN_APPKEY: ${DELLIN_APPKEY:-}
+      EXPRESS_CLIENT_ID: ${EXPRESS_CLIENT_ID:-}
+      EXPRESS_AUTH_KEY: ${EXPRESS_AUTH_KEY:-}
+      EXPRESS_SIGN_KEY: ${EXPRESS_SIGN_KEY:-}
+    depends_on:
+      auth-service:
+        condition: service_started
+
+  user-service:
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/deliverx-user-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-postgres:5432/user_db
+      SPRING_DATASOURCE_USERNAME: user_user
+      SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD:?Set USER_DB_PASSWORD}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?Set APP_JWT_SECRET}
+      SERVER_PORT: 8082
+    depends_on:
+      user-postgres:
+        condition: service_healthy
+
+  gateway-service:
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/deliverx-gateway-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?Set APP_JWT_SECRET}
+    depends_on:
+      auth-service:
+        condition: service_started
+      rates-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+
+  frontend:
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/deliverx-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      BACKEND_API_BASE_URL: http://gateway-service:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      gateway-service:
+        condition: service_started

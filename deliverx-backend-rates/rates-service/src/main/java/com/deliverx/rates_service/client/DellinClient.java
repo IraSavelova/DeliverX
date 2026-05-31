@@ -5,13 +5,16 @@ import com.deliverx.rates_service.dto.carrier.DellinCalculatorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * HTTP-клиент к API Деловых Линий v2.
@@ -28,6 +31,7 @@ public class DellinClient {
     private static final String BASE_URL  = "https://api.dellin.ru";
     private static final String CALC_PATH = "/v2/calculator.json";
     private static final int    MAX_BUF   = 10 * 1024 * 1024;
+    private static final double OVERSIZED_WEIGHT_KG = 800.0;
 
     @Value("${dellin.appkey}")
     private String appkey;
@@ -41,7 +45,7 @@ public class DellinClient {
                 .build();
     }
 
-    public DellinCalculatorResponse calculate(RateRequest req) {
+    public Optional<DellinCalculatorResponse> calculate(RateRequest req) {
         double volume = (req.getWidthCm()  / 100.0)
                       * (req.getLengthCm() / 100.0)
                       * (req.getHeightCm() / 100.0);
@@ -86,27 +90,35 @@ public class DellinClient {
         cargo.put("weight",      req.getWeightKg());
         cargo.put("totalVolume", volume);
         cargo.put("totalWeight", req.getWeightKg());
+
+        if (req.getWeightKg() >= OVERSIZED_WEIGHT_KG) {
+            cargo.put("oversizedVolume", volume);
+            cargo.put("oversizedWeight", req.getWeightKg());
+        }
+
         body.put("cargo", cargo);
 
         log.info("Dellin request: from='{}' to='{}' weight={}kg",
                 req.getFromCity(), req.getToCity(), req.getWeightKg());
 
         try {
-            return webClient.post()
+            return Optional.ofNullable(webClient.post()
                     .uri(CALC_PATH)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(DellinCalculatorResponse.class)
-                    .block();
+                    .block());
         } catch (WebClientResponseException e) {
+            HttpRequest request = e.getRequest();
+            URI requestUri = request != null ? request.getURI() : null;
             log.error("Dellin API error {} {} {}: {}",
                     e.getStatusCode(), e.getStatusText(),
-                    e.getRequest() != null ? e.getRequest().getURI() : "",
+                    requestUri != null ? requestUri : "",
                     e.getResponseBodyAsString());
-            return null;
+            return Optional.empty();
         } catch (Exception e) {
             log.error("Dellin API call failed: {}", e.getMessage());
-            return null;
+            return Optional.empty();
         }
     }
 }

@@ -18,6 +18,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -59,12 +60,12 @@ class DellinClientTest {
                     """)
                 .build()));
 
-        DellinCalculatorResponse resp = client.calculate(request());
+        Optional<DellinCalculatorResponse> resp = client.calculate(request());
 
-        assertThat(resp).isNotNull();
-        assertThat(resp.hasData()).isTrue();
-        assertThat(resp.getData().getAutoPrice()).isEqualTo(1957.0);
-        assertThat(resp.getData().getDeliveryTerm()).isEqualTo(7);
+        assertThat(resp).isPresent();
+        assertThat(resp.get().hasData()).isTrue();
+        assertThat(resp.get().getData().getAutoPrice()).isEqualTo(1957.0);
+        assertThat(resp.get().getData().getDeliveryTerm()).isEqualTo(7);
     }
 
     @Test
@@ -74,7 +75,7 @@ class DellinClientTest {
                 .body("{\"error\":\"bad request\"}")
                 .build()));
 
-        assertThat(client.calculate(request())).isNull();
+        assertThat(client.calculate(request())).isEmpty();
     }
 
     @Test
@@ -82,7 +83,7 @@ class DellinClientTest {
     void networkError() {
         stubHttp(req -> Mono.error(new RuntimeException("Connection refused")));
 
-        assertThat(client.calculate(request())).isNull();
+        assertThat(client.calculate(request())).isEmpty();
     }
 
     @Test
@@ -92,7 +93,7 @@ class DellinClientTest {
                 .body("{\"error\":\"too many requests\"}")
                 .build()));
 
-        assertThat(client.calculate(request())).isNull();
+        assertThat(client.calculate(request())).isEmpty();
     }
 
     @Test
@@ -117,10 +118,10 @@ class DellinClientTest {
                 .body("{}")
                 .build()));
 
-        DellinCalculatorResponse resp = client.calculate(request());
+        Optional<DellinCalculatorResponse> resp = client.calculate(request());
 
-        assertThat(resp).isNotNull();
-        assertThat(resp.hasData()).isFalse();
+        assertThat(resp).isPresent();
+        assertThat(resp.get().hasData()).isFalse();
     }
 
     private RateRequest request() {

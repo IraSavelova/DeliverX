@@ -24,6 +24,7 @@ frontend/.turbo/
 # Backend / Maven / Java
 **/target/
 **/.mvn/wrapper/maven-wrapper.jar
+**/.scannerwork/
 
 # Java language server / temp
 .classpath
