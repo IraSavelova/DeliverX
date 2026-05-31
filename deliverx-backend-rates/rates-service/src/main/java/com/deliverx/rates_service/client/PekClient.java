@@ -10,17 +10,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
-/**
- * HTTP-клиент к публичному API ПЭК.
- *
- * PEK не требует авторизации — просто GET с параметрами.
- * Документация: https://pecom.ru (раздел "Публичный API")
- *
- * Параметры груза передаются как массивы:
- *   places[0][]=ширина&places[0][]=длина&places[0][]=высота&places[0][]=объём&places[0][]=вес&places[0][]=0&places[0][]=0
- *
- * Размеры — в метрах, объём считаем сами (ш*д*в).
- */
+
 @Component
 public class PekClient {
 
