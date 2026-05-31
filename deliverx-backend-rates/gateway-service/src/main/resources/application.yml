@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: gateway-service
+
+  cloud:
+    gateway:
+      routes:
+        # Test route to auth service
+        - id: test-auth
+          uri: http://auth-service:8080
+          predicates:
+            - Path=/test/auth
+
+server:
+  port: 8080
+
+# JWT Configuration (same as auth service)
+app:
+  jwt:
+    secret: deliverx-super-secret-jwt-key-change-in-prod-000
+    expiration: 86400000
