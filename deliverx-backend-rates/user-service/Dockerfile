@@ -1,13 +1,11 @@
 FROM maven:3.9.11-eclipse-temurin-25-alpine AS builder
 WORKDIR /build
-COPY pom.xml ./
-COPY .mvn ./.mvn
-COPY mvnw ./
+COPY pom.xml .
 COPY src ./src
-RUN chmod +x mvnw && ./mvnw -q -DskipTests package
+RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 COPY --from=builder /build/target/*.jar app.jar
-EXPOSE 8082
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

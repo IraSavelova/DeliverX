@@ -5,16 +5,24 @@ spring:
   cloud:
     gateway:
       routes:
-        # Test route to auth service
-        - id: test-auth
+        - id: auth-service
           uri: http://auth-service:8080
           predicates:
-            - Path=/test/auth
+            - Path=/auth/**,/api/auth/**,/test/auth
+
+        - id: rates-service
+          uri: http://rates-service:8080
+          predicates:
+            - Path=/rates/**
+
+        - id: user-service
+          uri: http://user-service:8082
+          predicates:
+            - Path=/users/**,/profile/**,/api/users/**
 
 server:
   port: 8080
 
-# JWT Configuration (same as auth service)
 app:
   jwt:
     secret: deliverx-super-secret-jwt-key-change-in-prod-000
