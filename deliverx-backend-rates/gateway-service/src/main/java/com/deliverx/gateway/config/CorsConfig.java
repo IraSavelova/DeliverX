@@ -19,6 +19,8 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(Arrays.asList(
             "http://localhost:3000",  // Next.js dev server
             "http://localhost:3001",  // альтернативный порт, если 3000 занят
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
             "https://deliverx-frontend-prod.com"  // домен для прода
         ));
 

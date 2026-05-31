@@ -1,47 +1,114 @@
-import { useState } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { MessageCircle, X, User, Mail, Lock } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { MessageCircle, X, User, Mail, Lock } from "lucide-react";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 export function AuthSidebar() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+
   const [chatMessages, setChatMessages] = useState<{ text: string; isUser: boolean }[]>([
-    { text: 'Здравствуйте! Чем могу помочь?', isUser: false },
+    { text: "Здравствуйте! Чем могу помочь?", isUser: false },
   ]);
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState("");
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!chatInput.trim()) return;
 
     setChatMessages([...chatMessages, { text: chatInput, isUser: true }]);
-    setChatInput('');
+    setChatInput("");
 
-    // Имитация ответа поддержки
     setTimeout(() => {
       setChatMessages((prev) => [
         ...prev,
-        { text: 'Спасибо за ваш вопрос! Наш специалист свяжется с вами в ближайшее время.', isUser: false },
+        {
+          text: "Спасибо за ваш вопрос! Наш специалист свяжется с вами в ближайшее время.",
+          isUser: false,
+        },
       ]);
     }, 1000);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Функция входа будет доступна после подключения к базе данных');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        alert("Неверный email или пароль");
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      alert("Вход выполнен");
+      setIsAuthOpen(false);
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Не удалось выполнить вход. Проверьте backend.");
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Функция регистрации будет доступна после подключения к базе данных');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: registerName,
+          email: registerEmail,
+          password: registerPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        alert("Не удалось зарегистрироваться");
+        return;
+      }
+
+      alert("Регистрация успешна");
+      setRegisterName("");
+      setRegisterEmail("");
+      setRegisterPassword("");
+    } catch (error) {
+      console.error("Register error:", error);
+      alert("Не удалось выполнить регистрацию. Проверьте backend.");
+    }
   };
 
   return (
     <div className="fixed right-0 top-20 z-20 flex flex-col gap-3 mr-4">
-      {/* Auth Button */}
       <Button
         onClick={() => {
           setIsAuthOpen(!isAuthOpen);
@@ -52,7 +119,6 @@ export function AuthSidebar() {
         <User className="w-6 h-6" />
       </Button>
 
-      {/* Chat Button */}
       <Button
         onClick={() => {
           setIsChatOpen(!isChatOpen);
@@ -63,7 +129,6 @@ export function AuthSidebar() {
         <MessageCircle className="w-6 h-6" />
       </Button>
 
-      {/* Auth Panel */}
       {isAuthOpen && (
         <div className="absolute right-0 top-0 mt-32 w-96 bg-white rounded-xl shadow-2xl border border-gray-200">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -96,6 +161,8 @@ export function AuthSidebar() {
                         type="email"
                         placeholder="example@mail.com"
                         className="pl-10"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
                         required
                       />
                     </div>
@@ -110,6 +177,8 @@ export function AuthSidebar() {
                         type="password"
                         placeholder="••••••••"
                         className="pl-10"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
                         required
                       />
                     </div>
@@ -136,6 +205,8 @@ export function AuthSidebar() {
                         type="text"
                         placeholder="Ваше имя"
                         className="pl-10"
+                        value={registerName}
+                        onChange={(e) => setRegisterName(e.target.value)}
                         required
                       />
                     </div>
@@ -150,6 +221,8 @@ export function AuthSidebar() {
                         type="email"
                         placeholder="example@mail.com"
                         className="pl-10"
+                        value={registerEmail}
+                        onChange={(e) => setRegisterEmail(e.target.value)}
                         required
                       />
                     </div>
@@ -164,6 +237,8 @@ export function AuthSidebar() {
                         type="password"
                         placeholder="••••••••"
                         className="pl-10"
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
                         required
                       />
                     </div>
@@ -179,7 +254,6 @@ export function AuthSidebar() {
         </div>
       )}
 
-      {/* Chat Panel */}
       {isChatOpen && (
         <div className="absolute right-0 top-0 mt-32 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col h-[500px]">
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-500 rounded-t-xl">
@@ -198,13 +272,11 @@ export function AuthSidebar() {
             {chatMessages.map((message, index) => (
               <div
                 key={index}
-                className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[80%] rounded-lg p-3 ${
-                    message.isUser
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-100 text-gray-800'
+                    message.isUser ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-800"
                   }`}
                 >
                   {message.text}

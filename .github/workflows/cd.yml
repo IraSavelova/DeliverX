@@ -1,0 +1,85 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+      - master
+      - integrate-all
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-images:
+    name: Publish Docker images
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    strategy:
+      matrix:
+        include:
+          - image: auth-service
+            context: deliverx-backend-rates/auth-service
+          - image: rates-service
+            context: deliverx-backend-rates/rates-service
+          - image: gateway-service
+            context: deliverx-backend-rates/gateway-service
+          - image: user-service
+            context: deliverx-backend-rates/user-service
+          - image: frontend
+            context: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Set up Docker Buildx
+        run: docker buildx create --use --name deliverx-builder
+
+      - name: Build and push ${{ matrix.image }}
+        env:
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+          BACKEND_API_BASE_URL: ${{ vars.BACKEND_API_BASE_URL }}
+        run: |
+          OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          SHORT_SHA="${SOURCE_SHA::7}"
+          BRANCH_TAG="$(echo "${SOURCE_BRANCH}" | tr '/_' '--' | tr -cd '[:alnum:].-')"
+          IMAGE="ghcr.io/${OWNER_LC}/deliverx-${{ matrix.image }}"
+
+          TAG_ARGS=(
+            --tag "${IMAGE}:sha-${SHORT_SHA}"
+            --tag "${IMAGE}:${BRANCH_TAG}"
+          )
+
+          if [ "${SOURCE_BRANCH}" = "main" ] || [ "${SOURCE_BRANCH}" = "master" ]; then
+            TAG_ARGS+=(--tag "${IMAGE}:latest")
+          fi
+
+          BUILD_ARGS=()
+          if [ "${{ matrix.image }}" = "frontend" ] && [ -n "${NEXT_PUBLIC_API_BASE_URL}" ]; then
+            BUILD_ARGS+=(--build-arg "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}")
+          fi
+          if [ "${{ matrix.image }}" = "frontend" ] && [ -n "${BACKEND_API_BASE_URL}" ]; then
+            BUILD_ARGS+=(--build-arg "BACKEND_API_BASE_URL=${BACKEND_API_BASE_URL}")
+          fi
+
+          docker buildx build \
+            --file "${{ matrix.context }}/Dockerfile" \
+            "${TAG_ARGS[@]}" \
+            "${BUILD_ARGS[@]}" \
+            --push \
+            "${{ matrix.context }}"

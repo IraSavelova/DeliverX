@@ -17,9 +17,9 @@ interface RateResponse {
 }
 
 // Все перевозчики которых опрашиваем — для прогресс-бара
-const CARRIERS = ["ПЭК", "Деловые Линии"];
+const CARRIERS = ["ПЭК", "Деловые Линии", "Express.ru"];
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+const RATES_API_URL = "/api/rates/calculate";
 
 function getGuestId(): string {
   if (typeof window === "undefined") return "";
@@ -109,7 +109,7 @@ export default function RatesPage() {
         deliverySpeed: formData.deliverySpeed,
       };
 
-      const response = await fetch(`${API_BASE_URL}/rates/calculate`, {
+      const response = await fetch(RATES_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

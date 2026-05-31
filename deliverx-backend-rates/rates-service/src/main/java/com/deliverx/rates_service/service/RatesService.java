@@ -1,12 +1,14 @@
 package com.deliverx.rates_service.service;
 
 import com.deliverx.rates_service.client.DellinClient;
+import com.deliverx.rates_service.client.ExpressRuClient;
 import com.deliverx.rates_service.client.PekClient;
 import com.deliverx.rates_service.dto.RateRequest;
 import com.deliverx.rates_service.dto.RateResponse;
 import com.deliverx.rates_service.dto.carrier.CarrierRateRequest;
 import com.deliverx.rates_service.dto.carrier.CarrierRateResponse;
 import com.deliverx.rates_service.dto.carrier.DellinCalculatorResponse;
+import com.deliverx.rates_service.dto.carrier.ExpressRuCalculatorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RatesService {
@@ -24,13 +27,16 @@ public class RatesService {
     private final PekClient pekClient;
     private final CityDictionaryService cityDictionary;
     private final DellinClient dellinClient;
+    private final ExpressRuClient expressRuClient;
 
     public RatesService(PekClient pekClient,
                         CityDictionaryService cityDictionary,
-                        DellinClient dellinClient) {
+                        DellinClient dellinClient,
+                        ExpressRuClient expressRuClient) {
         this.pekClient = pekClient;
         this.cityDictionary = cityDictionary;
         this.dellinClient = dellinClient;
+        this.expressRuClient = expressRuClient;
     }
 
     /**
@@ -53,6 +59,9 @@ public class RatesService {
 
         log.info("Запрашиваем Деловые Линии...");
         results.addAll(fetchDellinRates(request));
+
+        log.info("Запрашиваем Express.ru...");
+        results.addAll(fetchExpressRuRates(request));
 
         if ("price".equalsIgnoreCase(sortBy)) {
             results.sort(Comparator.comparingDouble(RateResponse::getPrice));
@@ -104,13 +113,15 @@ public class RatesService {
     private List<RateResponse> fetchDellinRates(RateRequest request) {
         List<RateResponse> rates = new ArrayList<>();
 
-        DellinCalculatorResponse response = dellinClient.calculate(request);
+        Optional<DellinCalculatorResponse> maybeResponse = dellinClient.calculate(request)
+                .filter(DellinCalculatorResponse::hasData);
 
-        if (response == null || !response.hasData()) {
+        if (maybeResponse.isEmpty()) {
             log.warn("Деловые Линии: нет ответа");
             return rates;
         }
 
+        DellinCalculatorResponse response = maybeResponse.orElseThrow();
         DellinCalculatorResponse.Data data = response.getData();
         int days = data.getDays();
 
@@ -133,6 +144,42 @@ public class RatesService {
         log.info("Деловые Линии: авто={} авиа={} экспресс={} дней={}",
                 autoPrice, aviaPrice, expressPrice, days);
 
+        return rates;
+    }
+
+    /**
+     * Express.ru возвращает несколько тарифов в одном ответе — Базовый, Срочный и т.п.
+     * Мы конвертируем каждый в RateResponse. Все тарифы Express.ru — курьерская
+     * доставка, поэтому deliveryMethod = COURIER.
+     */
+    private List<RateResponse> fetchExpressRuRates(RateRequest request) {
+        List<RateResponse> rates = new ArrayList<>();
+
+        ExpressRuCalculatorResponse response = expressRuClient.calculate(request);
+        if (response == null || !response.isOk()) {
+            log.warn("Express.ru: нет тарифов. status={} error={} resultSize={}",
+                    response != null ? response.getStatus() : null,
+                    response != null ? response.getError() : null,
+                    response != null && response.getResult() != null ? response.getResult().size() : 0);
+            return rates;
+        }
+
+        for (ExpressRuCalculatorResponse.Tariff t : response.getResult()) {
+            if (t.getRawPrice() == null || t.getRawPrice() <= 0) continue;
+
+            String label = t.getTypeLabel() != null && !t.getTypeLabel().isBlank()
+                    ? "Express.ru " + t.getTypeLabel()
+                    : "Express.ru";
+
+            rates.add(new RateResponse(
+                    label,
+                    t.getRawPrice(),
+                    t.getEstimatedDays(),
+                    "COURIER"
+            ));
+        }
+
+        log.info("Express.ru: получено {} тарифов", rates.size());
         return rates;
     }
 }
