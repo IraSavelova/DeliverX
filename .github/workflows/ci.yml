@@ -28,9 +28,9 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Build ${{ matrix.service }}
+      - name: Test and build ${{ matrix.service }}
         working-directory: deliverx-backend-rates/${{ matrix.service }}
-        run: ./mvnw clean package -DskipTests
+        run: ./mvnw clean verify
 
   frontend:
     name: Build frontend

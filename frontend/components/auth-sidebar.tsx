@@ -5,7 +5,7 @@ import { Label } from "../ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { MessageCircle, X, User, Mail, Lock } from "lucide-react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+const API_BASE_URL = "/api";
 
 export function AuthSidebar() {
   const [isChatOpen, setIsChatOpen] = useState(false);
