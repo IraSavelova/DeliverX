@@ -95,7 +95,7 @@ services:
     environment:
       BACKEND_API_BASE_URL: http://gateway-service:8080
     ports:
-      - "3000:3000"
+      - "80:3000"
     depends_on:
       gateway-service:
         condition: service_started

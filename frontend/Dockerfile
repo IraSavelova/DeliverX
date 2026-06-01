@@ -5,9 +5,7 @@ RUN npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_BASE_URL=https://finance-parker-believes-posted.trycloudflare.com
 ARG BACKEND_API_BASE_URL=http://gateway-service:8080
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 ENV BACKEND_API_BASE_URL=${BACKEND_API_BASE_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -17,6 +15,7 @@ FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV BACKEND_API_BASE_URL=http://gateway-service:8080
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./

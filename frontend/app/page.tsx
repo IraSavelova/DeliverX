@@ -121,7 +121,10 @@ export default function RatesPage() {
       clearInterval(carrierTimer);
       setCarrierProgress(CARRIERS.length);
 
-      if (!response.ok) throw new Error("Не удалось получить тарифы");
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Не удалось получить тарифы: ${response.status} ${errorBody}`);
+      }
 
       const rates: RateResponse[] = await response.json();
 
